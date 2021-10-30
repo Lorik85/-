@@ -1,0 +1,143 @@
+import numpy
+import scipy.special
+import matplotlib.pyplot as plt
+import os
+
+
+class neuralNetwork :
+    #определим инициализацию, зададим колличество входных, скрытых,
+    #выходных узлов и оэффициент обучения
+    
+    def __init__ (self, вх_слой, ск_слой, вых_слой, К_обучения):
+        self.IN = вх_слой
+        self.HN = ск_слой
+        self.ON = вых_слой
+        
+    #задаем веса W
+        #от входных до скрытых
+        self.wIH = numpy.random.normal (0.0, pow (self.HN, -0.5), (self.HN, self.IN))
+        #от скрытых до выходных
+        self.wHO = numpy.random.normal (0.0, pow (self.ON, -0.5), (self.ON, self.HN))
+        
+        self.Len = К_обучения
+        #использование сигмоиды
+        #self.активатор = lambda x: scipy.special.expit(x)
+        self.активатор = lambda x: scipy.special.expit(x)
+        pass
+    # тренировка нейросети
+
+    def тренировка (self, случайные_вход_сигналы, тренировочные_примеры):
+        # преобразование в массив
+        IP = numpy.array(случайные_вход_сигналы, ndmin=2).T
+        TP = numpy.array(тренировочные_примеры, ndmin=2).T
+        #расчет вх и вых сигналов скрытый слой
+        СВх = numpy.dot(self.wIH, IP)
+        СВых = self.активатор(СВх)
+        #расчет вх и вых сигналов выходной слой
+        ВВх = numpy.dot(self.wHO, СВых)
+        ВВых = self.активатор(ВВх)
+
+        #Ошибки вых слоя
+        ВОш = TP - ВВых
+        # Ошибки среднего слоя
+        СОш = numpy.dot(self.wHO.T, ВОш)
+
+        #обновление связей
+        
+
+       # print ('----')
+
+       # print ('ВВых', (len (ВВых)))
+       # print ('ВВх',  (len (ВВх)))
+       # print ('СВых', (len (СВых)))
+        #print ('СВх',  (len (СВх)))
+
+       # print ('----')
+
+        self.wHO += self.Len * numpy.dot((ВОш * ВВых *(1.0 - ВВых)), numpy.transpose(СВых))
+        self.wIH += self.Len * numpy.dot((СОш * СВых *(1.0 - СВых)), numpy.transpose(IP))
+        pass
+    
+    
+       
+
+    
+    def опрос (self, случайные_вход_сигналы):
+        IP = numpy.array(случайные_вход_сигналы, ndmin=2).T
+    
+        СВх = numpy.dot(self.wIH, IP)
+        СВых = self.активатор(СВх)
+        ВВх = numpy.dot(self.wHO, СВых)
+        ВВых = self.активатор(ВВх)
+
+        return ВВых
+
+        #ФУНКЦИЯ ТЕСТИРОВАНИЯ
+def test_function(ocherednaya_nn):  
+    тест_file = open ("C:/Python/Nn/mnist_test.csv", 'r')
+    тест_list = тест_file.readlines()
+    тест_file.close()
+    scorecard = []
+    for record in  тест_list:
+        all_values = record.split(',')
+        правильные = int (all_values[0])
+        #print(правильные, 'маркер')
+        
+        IP = (numpy.asfarray(all_values[1:])/255.0*0.99)+0.01
+        TP = ocherednaya_nn.опрос(IP)
+        label = numpy.argmax(TP)
+        #print (label, 'ответ сети')
+        if (label == правильные):
+            scorecard.append(1)
+        else:
+            scorecard.append(0)
+            pass
+        pass
+    scorecard_arrey = numpy.asarray(scorecard)
+    return(scorecard_arrey.sum() / scorecard_arrey.size)   
+
+        #ФУНКЦИЯ ОТОБРАЖЕНИЯ РЕЗУЛЬТАТОВ
+def grafic(arr_effect,koeff):  
+    mas_ep = []
+    for k in range(len(arr_effect)):
+        mas_ep.append(k+1)    
+    graph1 = plt.plot(mas_ep,arr_effect, label = "Коэф.обучения=" +str(koeff))
+    mas_ep.clear()
+        #ВВОД КОЛИЧЕСТВА УЗЛОВ И СОЗДАНИЕ ЭКЗЕМПЛЯРА НЕЙРОСЕТИ
+    
+Вх_слой = 28*28
+Ск_слой = 200
+Вых_слой = 10
+Коэф_об = [0.1,0.2,0.3,0.4,0.5]
+
+тренировка_file = open ("C:/Python/Nn/mnist_train.csv", 'r')
+тренировка_list = тренировка_file.readlines()
+тренировка_file.close()
+    
+
+        #ТРЕНИРОВКА И ТЕСТИРОВАНИЕ
+level = 15  #поколение нейросети
+epochs = range(level)
+array_effect = [] #массив эффективности нейросетей по возрастанию поколений
+fig = plt.figure()
+for koef in Коэф_об:
+    n = neuralNetwork (Вх_слой, Ск_слой,Вых_слой,koef)
+    for e in epochs:
+        for record in  тренировка_list:
+            all_values = record.split(',')
+            IP = (numpy.asfarray(all_values[1:])/255.0*0.99)+0.01
+            TP = numpy.zeros(Вых_слой)+0.01
+            TP[int(all_values[0])]=0.99
+            n.тренировка(IP, TP)
+        array_effect.append(test_function(n))   
+
+    for k in range(len(array_effect)):
+        print("Эффективность сети ",k+1,"-го поколения = ",array_effect[k]," (коэффициент обучения=",koef,")")
+    grafic(array_effect,koef)
+    array_effect.clear()
+plt.grid(True)
+plt.title("Графики зависимости эффективности")
+plt.xlabel("Номер эпохи")
+plt.ylabel("Эффективность")
+       
+       
